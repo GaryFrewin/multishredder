@@ -2,9 +2,10 @@ from multiprocessing import Process, Pipe, Queue
 import time
 import pyodbc
 import xml.etree.ElementTree as ET
+import argparse
 
 
-def get_sql_chunks(db_to_worker_pipes, worker_readiness_queue, chunk_size=1000):
+def get_sql_chunks(db_to_worker_pipes, worker_readiness_queue, chunk_size):
     try:
         cnxn = pyodbc.connect(
             "DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=GeorgeWork;UID=python;PWD=mypassword(!)"
@@ -81,49 +82,68 @@ class XMLProcessor:
         worker_input_pipe.close()
 
 
+class Config:
+    def __init__(self, args):
+        self.chunk_size = args.chunksize
+        self.num_workers = args.workers
+        self.num_writers = args.writers
+        self.batch_size = args.batchsize
+
+
 class MultiProcessOrchestrator:
-    def __init__(self, db_reader, workers, db_writer):
-        self.db_reader = db_reader
-        self.workers = workers  # a list of ProcessSequencer objects
-        self.db_writer = db_writer
+    def __init__(self, config: Config):
+        self.config = config
+        self.db_reader = get_sql_chunks
+        self.worker = XMLProcessor()  # a list of ProcessSequencer objects
+        self.db_writer = write_to_sql
+
         self.db_to_worker_pipes = []
         self.worker_input_pipes = []
         self.worker_readiness_queue = Queue()
-        self.processed_data_queue = Queue()
+        self.processed_data_queues = [Queue() for _ in range(self.config.num_writers)]
 
-    def _create_worker_processes(self, num_processes):
+    def _create_worker_processes(self):
         processes = []
-        for i in range(num_processes - 2):
-            input_end, ouput_end = Pipe()
+        for i in range(self.config.num_workers):
+            input_end, output_end = Pipe()
             self.db_to_worker_pipes.append(input_end)
-            self.worker_input_pipes.append(ouput_end)
-            # for now let's just treat a single group
+            self.worker_input_pipes.append(output_end)
+
+            # Assign each worker process to a data queue in a round-robin fashion
+            assigned_queue = self.processed_data_queues[i % self.config.num_writers]
             processes.append(
                 Process(
-                    target=self.workers[0].execute,
+                    target=self.worker.execute,
                     args=(
-                        ouput_end,
+                        output_end,
                         i,
                         self.worker_readiness_queue,
-                        self.processed_data_queue,
+                        assigned_queue,
                     ),
                 )
             )
         return processes
 
     def _start_writer_process(self):
-        writer_process = Process(
-            target=self.db_writer, args=(self.processed_data_queue,)
-        )
-        writer_process.start()
-        return writer_process
+        writer_processes = []
+        for queue in self.processed_data_queues:
+            writer_process = Process(
+                target=self.db_writer, args=(queue, self.config.batch_size)
+            )
+            writer_process.start()
+            writer_processes.append(writer_process)
+        return writer_processes
 
     def _start_reader_process(self):
         reader_process = Process(
             target=self.db_reader,
-            args=(self.db_to_worker_pipes, self.worker_readiness_queue),
+            args=(
+                self.db_to_worker_pipes,
+                self.worker_readiness_queue,
+                self.config.chunk_size,
+            ),
         )
-        # print("Starting reader process")
+        print("Starting reader process")
         reader_process.start()
         return reader_process
 
@@ -144,33 +164,44 @@ class MultiProcessOrchestrator:
             worker.join()
         print("Worker processes finished")
 
-    def _send_stop_signal_to_writer_and_wait(self, writer):
-        self.processed_data_queue.put("STOP")
-        writer.join()  # Wait for writer to finish
+    def _send_stop_signal_to_writer_and_wait(self, writers):
+        for queue in self.processed_data_queues:
+            queue.put("STOP")
 
-    def execute(self, num_processes=12):
+        for writer in writers:
+            writer.join()
+
+    def execute(self):
         print("Starting pipeline")
-        processes = self._create_worker_processes(num_processes)
-        db_writer = self._start_writer_process()
+        processes = self._create_worker_processes()
+        db_writers = self._start_writer_process()
         db_reader = self._start_reader_process()
         self._start_workers(processes)
         self._wait_for_reader(db_reader)
         self._close_reader_to_worker_pipes()
         self._wait_for_workers(processes)
-        self._send_stop_signal_to_writer_and_wait(db_writer)
+        self._send_stop_signal_to_writer_and_wait(db_writers)
         print("Pipeline finished")
 
 
-import pyodbc
-
-
-def db_writer(processed_data_queue, batch_size=100):
+def write_to_sql(processed_data_queue, batch_size):
     cnxn = pyodbc.connect(
         "DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=GeorgeWork;UID=python;PWD=mypassword(!)"
     )
     cursor = cnxn.cursor()
 
-    # ... existing code to create table ...
+    # Create the table if it does not exist
+    cursor.execute(
+        """
+        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ProcessedData' AND xtype='U')
+        CREATE TABLE ProcessedData (
+            Grp_Product NVARCHAR(10),
+            Pct_Product NVARCHAR(10),
+            Pct_Pet_Sex NVARCHAR(10)
+        )
+    """
+    )
+    cnxn.commit()
 
     while True:
         data = processed_data_queue.get()
@@ -207,15 +238,34 @@ def db_writer(processed_data_queue, batch_size=100):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    # Define the arguments
+    parser.add_argument(
+        "--chunksize",
+        type=int,
+        default=1000,
+        help="Num of rows to read from SQL at a time",
+    )  # noqa E501
+    parser.add_argument(
+        "--workers", type=int, default=8, help="Number of worker processes"
+    )  # noqa E501
+    parser.add_argument(
+        "--writers", type=int, default=4, help="Number of writer processes"
+    )  # noqa E501
+    parser.add_argument(
+        "--batchsize", type=int, default=1000, help="Batch write size"
+    )  # noqa E501
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # Create the config object
+    config = Config(args)
+
     worker = XMLProcessor()
 
-    orchestrator = MultiProcessOrchestrator(
-        db_reader=get_sql_chunks,
-        workers=[
-            worker,
-        ],
-        db_writer=db_writer,
-    )
+    orchestrator = MultiProcessOrchestrator(config)
     tic = time.perf_counter()
     orchestrator.execute()
     toc = time.perf_counter()
