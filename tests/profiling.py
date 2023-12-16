@@ -1,3 +1,4 @@
+import itertools
 import subprocess
 import time
 import matplotlib.pyplot as plt
@@ -42,4 +43,34 @@ def run_profiling():
     plt.show()
 
 
+def run_profiling_cb():
+    # Define ranges for chunksize and batchsize
+    chunksizes = [100, 500, 1000, 5000]
+    batchsizes = [100, 500, 1000, 5000]
+
+    # Keep the optimal worker/writer ratio from previous profiling
+    optimal_workers = 2  # Replace with your optimal values
+    optimal_writers = 10  # Replace with your optimal values
+
+    configurations = list(itertools.product(chunksizes, batchsizes))
+    durations = []
+
+    for chunksize, batchsize in configurations:
+        duration = run_pipeline(optimal_workers, optimal_writers, chunksize, batchsize)
+        durations.append(((chunksize, batchsize), duration))
+
+    # Plotting the results
+    chunksizes, batchsizes = zip(*[config for config, _ in durations])
+    times = [duration for _, duration in durations]
+
+    plt.scatter(chunksizes, times, label="Chunksize", color="r")
+    plt.scatter(batchsizes, times, label="Batchsize", color="b")
+    plt.xlabel("Chunksize/Batchsize")
+    plt.ylabel("Time (seconds)")
+    plt.title("Performance with Different Chunksize and Batchsize")
+    plt.legend()
+    plt.show()
+
+
 run_profiling()
+# run_profiling_cb()
