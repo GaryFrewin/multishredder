@@ -1,3 +1,4 @@
+import csv
 import itertools
 import subprocess
 import time
@@ -7,7 +8,7 @@ import matplotlib.pyplot as plt
 def run_pipeline(workers, writers, chunksize, batchsize):
     args = [
         ".venv311\\Scripts\\python.exe",
-        "src/pipeline.py",
+        "src/main.py",
         "--chunksize",
         str(chunksize),
         "--workers",
@@ -31,16 +32,14 @@ def run_profiling():
         duration = run_pipeline(*config)
         durations.append((config, duration))
 
-    # Plotting the results
-    workers, writers = zip(*[(config[0], config[1]) for config, _ in durations])
-    times = [duration for _, duration in durations]
+    # Writing the results to a CSV file
+    with open("profiling_results.csv", "w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["Workers", "Writers", "Duration"])
 
-    plt.scatter(workers, times, label="Time per Configuration", color="r")
-    plt.xlabel("Number of Workers (Writers = 12 - Workers)")
-    plt.ylabel("Time (seconds)")
-    plt.title("Performance with Different Worker/Writer Configurations")
-    plt.legend()
-    plt.show()
+        for config, duration in durations:
+            workers, writers = config[0], config[1]
+            writer.writerow([workers, writers, duration])
 
 
 def run_profiling_cb():
@@ -55,22 +54,16 @@ def run_profiling_cb():
     configurations = list(itertools.product(chunksizes, batchsizes))
     durations = []
 
-    for chunksize, batchsize in configurations:
-        duration = run_pipeline(optimal_workers, optimal_writers, chunksize, batchsize)
-        durations.append(((chunksize, batchsize), duration))
+    with open("profiling_results.csv", "w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["Chunksize", "Batchsize", "Time"])
 
-    # Plotting the results
-    chunksizes, batchsizes = zip(*[config for config, _ in durations])
-    times = [duration for _, duration in durations]
-
-    plt.scatter(chunksizes, times, label="Chunksize", color="r")
-    plt.scatter(batchsizes, times, label="Batchsize", color="b")
-    plt.xlabel("Chunksize/Batchsize")
-    plt.ylabel("Time (seconds)")
-    plt.title("Performance with Different Chunksize and Batchsize")
-    plt.legend()
-    plt.show()
+        for chunksize, batchsize in itertools.product(chunksizes, batchsizes):
+            duration = run_pipeline(
+                optimal_workers, optimal_writers, chunksize, batchsize
+            )
+            writer.writerow([chunksize, batchsize, duration])
 
 
 run_profiling()
-# run_profiling_cb()
+run_profiling_cb()
