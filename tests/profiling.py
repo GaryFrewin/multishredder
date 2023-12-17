@@ -33,7 +33,7 @@ def run_profiling():
         durations.append((config, duration))
 
     # Writing the results to a CSV file
-    with open("profiling_results.csv", "w", newline="") as file:
+    with open("profiling_results_workers.csv", "w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(["Workers", "Writers", "Duration"])
 
@@ -54,7 +54,7 @@ def run_profiling_cb():
     configurations = list(itertools.product(chunksizes, batchsizes))
     durations = []
 
-    with open("profiling_results.csv", "w", newline="") as file:
+    with open("profiling_results_chunksize.csv", "w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(["Chunksize", "Batchsize", "Time"])
 
