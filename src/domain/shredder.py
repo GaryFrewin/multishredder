@@ -1,31 +1,11 @@
-from domain.processed_data import ProcessedData
 import xml.etree.ElementTree as ET
+
+from src.domain.processed_data import ProcessedData
 
 
 class XMLProcessor:
-    def _process_rows(self, rows, processed_data_queue):
-        processed_rows = []
-
-        for row in rows:
-            xml_data = row.r3  # Assuming 'r3' is the column with XML data
-
-            # Parse the XML data
-            try:
-                root = ET.fromstring(xml_data)
-                for cp_pet_r3 in root.findall("CpPetR3"):
-                    # Extract the 'Val' attribute from each element
-                    grp_product = cp_pet_r3.find("Grp_Product").get("Val")
-                    pct_product = cp_pet_r3.find("Pct_Product").get("Val")
-                    pct_pet_sex = cp_pet_r3.find("Pct_Pet_Sex").get("Val")
-
-                    # Create a ProcessedData object and put it in the queue
-                    processed_row = ProcessedData(grp_product, pct_product, pct_pet_sex)
-                    processed_rows.append(processed_row)
-
-            except ET.ParseError as e:
-                print(f"Error parsing XML in row: {e}")
-
-        processed_data_queue.put(processed_rows)
+    def __init__(self, data_spec):
+        self.data_spec = data_spec
 
     def execute(self, worker_input_pipe, idx, readiness_queue, processed_data_queue):
         readiness_queue.put(idx)
@@ -41,3 +21,33 @@ class XMLProcessor:
             readiness_queue.put(idx)
 
         worker_input_pipe.close()
+
+    def _process_rows(self, rows, processed_data_queue):
+        processed_rows = []
+        for row in rows:
+            processed_data = self._process_row(row)
+            processed_rows.append(processed_data)
+        processed_data_queue.put(processed_rows)
+
+    def _process_row(self, row):
+        processed_data = ProcessedData()
+        for meta in self.data_spec:
+            if meta.field_type == "root":
+                processed_data.add_attribute(
+                    meta.target_field, getattr(row, meta.source_field)
+                )
+            elif meta.field_type == "xml":
+                xml_data = getattr(row, meta.source_field)
+                extracted_data = self._process_xml(xml_data, self.data_spec)
+                for key, value in extracted_data.items():
+                    processed_data.add_attribute(key, value)
+        return processed_data
+
+    def _process_xml(self, xml_data, data_spec):
+        root = ET.fromstring(xml_data)
+        extracted_data = {}
+        for element in root:
+            for meta in data_spec:
+                if meta.source_field == element.tag and meta.field_type == "xml":
+                    extracted_data[meta.target_field] = element.text
+        return extracted_data
