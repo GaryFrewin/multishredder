@@ -4,3 +4,4 @@ venv/
 .vscode/
 mprofile*
 **/__pycache__/
+.env

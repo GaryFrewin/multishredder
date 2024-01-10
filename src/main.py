@@ -1,10 +1,16 @@
+import os
 import time
 
 import argparse
-from domain.config import Config
-from domain.orchestrator import MultiProcessOrchestrator
-from domain.shredder import XMLProcessor
+from dotenv import load_dotenv
 
+from src.domain.config import Config
+from src.domain.orchestrator import MultiProcessOrchestrator
+from src.domain.shredder import XMLProcessor
+from src.services.data_spec_builder import MetaDataBuilder
+from src.services.sql_query_loader import SqlQueryLoader
+
+load_dotenv()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -32,6 +38,16 @@ if __name__ == "__main__":
     # Create the config object
     config = Config(args)
 
+    sql_loader = SqlQueryLoader("src\sql\select_metadata.sql")
+    query = sql_loader.load()
+    replacements = {
+        "US_SOURCES_TABLE": os.getenv("US_SOURCES_TABLE"),
+        "UNSTRUCTURED_TABLES_TABLE": os.getenv("UNSTRUCTURED_TABLES_TABLE"),
+    }
+    query_with_replacements = sql_loader.replace_placeholders(query, replacements)
+
+    # get classes for each metadata object
+    # metadata_class_builder = MetaDataBuilder(data)
     worker = XMLProcessor()
 
     orchestrator = MultiProcessOrchestrator(config)
