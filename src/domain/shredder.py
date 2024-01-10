@@ -1,11 +1,11 @@
-import xml.etree.ElementTree as ET
-
+from lxml import etree
 from domain.processed_data import ProcessedData
+from services.data_spec_builder import MetaData
 
 
 class XMLProcessor:
-    def __init__(self, data_spec):
-        self.data_spec = data_spec
+    def __init__(self, data_spec_classes: list[MetaData]):
+        self.data_spec_classes = data_spec_classes
 
     def execute(self, worker_input_pipe, idx, readiness_queue, processed_data_queue):
         readiness_queue.put(idx)
@@ -16,38 +16,60 @@ class XMLProcessor:
                 readiness_queue.put("STOP")
                 break
 
-            # print(f"Worker {idx} received {len(rows)} rows")
             self._process_rows(rows, processed_data_queue)
             readiness_queue.put(idx)
 
         worker_input_pipe.close()
 
+    def _get_classes_for_row(self, row):
+        if row.action == "quote":
+            return [
+                cls
+                for cls in self.data_spec_classes
+                if cls.xml_src_column in ["request", "response", "r1", "r2", "r3"]
+            ]
+        else:
+            return []
+
     def _process_rows(self, rows, processed_data_queue):
         processed_rows = []
         for row in rows:
-            processed_data = self._process_row(row)
-            processed_rows.append(processed_data)
+            classes_for_row = self._get_classes_for_row(row)
+            for spec in classes_for_row:
+                processed_data = self._process_row(row, spec)
+                processed_rows.append(processed_data)
         processed_data_queue.put(processed_rows)
 
-    def _process_row(self, row):
+    def _process_row(self, row, spec: MetaData):
         processed_data = ProcessedData()
-        for meta in self.data_spec:
-            if meta.field_type == "root":
-                processed_data.add_attribute(
-                    meta.target_field, getattr(row, meta.source_field)
-                )
-            elif meta.field_type == "xml":
-                xml_data = getattr(row, meta.source_field)
-                extracted_data = self._process_xml(xml_data, self.data_spec)
-                for key, value in extracted_data.items():
-                    processed_data.add_attribute(key, value)
-        return processed_data
+        # add root data
+        for source_field, target_spec in spec.root_mapping.items():
+            try:
+                target_field, data_type = target_spec
+                value = getattr(row, source_field.lower())
+                processed_data.add_attribute(target_field, value)
+            except AttributeError:
+                # print(f"Attribute {source_field} not found in row")
+                pass
 
-    def _process_xml(self, xml_data, data_spec):
-        root = ET.fromstring(xml_data)
-        extracted_data = {}
-        for element in root:
-            for meta in data_spec:
-                if meta.source_field == element.tag and meta.field_type == "xml":
-                    extracted_data[meta.target_field] = element.text
-        return extracted_data
+        # add xml data
+        column = spec.xml_src_column
+        try:
+            xml_data = getattr(row, column)
+            root = etree.fromstring(xml_data)
+            extracted_data = {}
+            for element in root.iter():
+                # Check if the element's tag matches spec.src_node
+                if element.tag == spec.xml_src_node:
+                    # Iterate over the xml_mapping specifications
+                    for child in element:
+                        for source_field, target_spec in spec.xml_mapping.items():
+                            target_field, data_type = target_spec
+                            if source_field == child.tag:
+                                value = child.get("Val")
+                                processed_data.add_attribute(target_field, value)
+        except AttributeError:
+            # print(f"XML column {column} not found in row")
+            pass
+
+        return processed_data

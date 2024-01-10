@@ -3,13 +3,14 @@ from domain.config import Config
 from domain.reader import get_sql_chunks
 from domain.shredder import XMLProcessor
 from domain.writer import write_to_sql
+from services.data_spec_builder import MetaData
 
 
 class MultiProcessOrchestrator:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, classes: list[MetaData]):
         self.config = config
         self.db_reader = get_sql_chunks
-        self.worker = XMLProcessor()  # a list of ProcessSequencer objects
+        self.worker = XMLProcessor(classes)  # a list of ProcessSequencer objects
         self.db_writer = write_to_sql
 
         self.db_to_worker_pipes = []

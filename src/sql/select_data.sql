@@ -1,0 +1,13 @@
+SELECT [id]
+      ,[qid]
+      ,[pqid]
+      ,[entered]
+      ,[brand]
+      ,[src]
+      ,[action]
+      ,[request]
+      ,[response]
+      ,[r1]
+      ,[r2]
+      ,[r3]
+  FROM TABLE_NAME

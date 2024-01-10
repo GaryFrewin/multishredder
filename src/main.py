@@ -44,15 +44,15 @@ def fetch_metadata():
     }
     query_with_replacements = sql_loader.replace_placeholders(query, replacements)
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(query_with_replacements)
-    return cursor.fetchall()
+    # Use a with statement to ensure the connection is closed after use
+    with pyodbc.connect(os.getenv("DB_CONNECTION_STRING")) as conn:
+        cursor = conn.cursor()
+        cursor.execute(query_with_replacements)
+        return cursor.fetchall()
 
 
 def execute_orchestrator(config, classes):
-    worker = XMLProcessor()
-    orchestrator = MultiProcessOrchestrator(config)
+    orchestrator = MultiProcessOrchestrator(config, classes)
     tic = time.perf_counter()
     orchestrator.execute()
     toc = time.perf_counter()

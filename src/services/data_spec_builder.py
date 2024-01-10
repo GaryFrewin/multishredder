@@ -6,6 +6,7 @@ from typing import Any
 @dataclass(frozen=True)
 class MetaData:
     object_id: int
+    xml_src_column: str
     xml_src_node: str
     target_table: str
     action: str
@@ -28,6 +29,7 @@ class MetaDataBuilder:
             metadata = self.metadata_by_obj_id[obj_id][0]
 
             object_id = metadata.UnstructuredSourcesId
+            xml_src_column = metadata.SrcColumn
             action = metadata.SrcMethodOrAction
             src_node = metadata.SrcNode
             target_table = metadata.TgtTable
@@ -36,21 +38,27 @@ class MetaDataBuilder:
 
             # Create an instance of MetaData and append to all_objects
             metadata_instance = MetaData(
-                object_id, src_node, target_table, action, root_map, xml_map
+                object_id,
+                xml_src_column,
+                src_node,
+                target_table,
+                action,
+                root_map,
+                xml_map,
             )
             all_objects.append(metadata_instance)
 
         return all_objects
 
     def _create_root_map(self, metadata):
-        mapping = defaultdict(lambda: defaultdict(dict))
+        mapping = defaultdict(dict)
         for row in metadata:
             if row.DataLevel == "root":
                 mapping[row.SourceFieldName] = (row.OutputFieldName, row.DataType)
         return mapping
 
     def _create_xml_map(self, metadata):
-        mapping = defaultdict(lambda: defaultdict(dict))
+        mapping = defaultdict(dict)
         for row in metadata:
             if row.DataLevel == "xml":
                 mapping[row.SourceFieldName] = (row.OutputFieldName, row.DataType)
