@@ -1,43 +1,41 @@
 import os
 import time
-
 import argparse
+import pyodbc
 from dotenv import load_dotenv
-
-from src.domain.config import Config
-from src.domain.orchestrator import MultiProcessOrchestrator
-from src.domain.shredder import XMLProcessor
-from src.services.data_spec_builder import MetaDataBuilder
-from src.services.sql_query_loader import SqlQueryLoader
+from domain.config import Config
+from domain.orchestrator import MultiProcessOrchestrator
+from domain.shredder import XMLProcessor
+from services.data_spec_builder import MetaDataBuilder
+from services.sql_query_loader import SqlQueryLoader
 
 load_dotenv()
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
 
-    # Define the arguments
+def parse_arguments():
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--chunksize",
         type=int,
         default=1000,
         help="Num of rows to read from SQL at a time",
-    )  # noqa E501
+    )
     parser.add_argument(
         "--workers", type=int, default=2, help="Number of worker processes"
-    )  # noqa E501
+    )
     parser.add_argument(
         "--writers", type=int, default=10, help="Number of writer processes"
-    )  # noqa E501
-    parser.add_argument(
-        "--batchsize", type=int, default=1000, help="Batch write size"
-    )  # noqa E501
+    )
+    parser.add_argument("--batchsize", type=int, default=1000, help="Batch write size")
+    return parser.parse_args()
 
-    # Parse the arguments
-    args = parser.parse_args()
 
-    # Create the config object
-    config = Config(args)
+def get_db_connection():
+    conn_str = os.getenv("DB_CONNECTION_STRING")
+    return pyodbc.connect(conn_str)
 
+
+def fetch_metadata():
     sql_loader = SqlQueryLoader("src\sql\select_metadata.sql")
     query = sql_loader.load()
     replacements = {
@@ -46,12 +44,25 @@ if __name__ == "__main__":
     }
     query_with_replacements = sql_loader.replace_placeholders(query, replacements)
 
-    # get classes for each metadata object
-    # metadata_class_builder = MetaDataBuilder(data)
-    worker = XMLProcessor()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(query_with_replacements)
+    return cursor.fetchall()
 
+
+def execute_orchestrator(config, classes):
+    worker = XMLProcessor()
     orchestrator = MultiProcessOrchestrator(config)
     tic = time.perf_counter()
     orchestrator.execute()
     toc = time.perf_counter()
     print(f"Finished in {toc - tic:0.4f} seconds")
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+    config = Config(args)
+    metadata = fetch_metadata()
+    metadata_class_builder = MetaDataBuilder(metadata)
+    classes = metadata_class_builder.build()
+    execute_orchestrator(config, classes)

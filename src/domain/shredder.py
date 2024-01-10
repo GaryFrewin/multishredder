@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 
-from src.domain.processed_data import ProcessedData
+from domain.processed_data import ProcessedData
 
 
 class XMLProcessor:
