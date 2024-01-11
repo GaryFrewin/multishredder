@@ -2,6 +2,11 @@ import os
 import pytest
 import pyodbc
 import sqlite3
+from fixtures.r1xml import r1_quote_xml
+from fixtures.r2xml import r2_quote_xml
+from fixtures.r3xml import r3_quote_xml
+from fixtures.requestxml import request_quote_xml
+
 from dotenv import load_dotenv
 
 load_dotenv()

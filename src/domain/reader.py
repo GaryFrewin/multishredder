@@ -2,7 +2,7 @@ import os
 import pyodbc
 from dotenv import load_dotenv
 
-from services.sql_query_loader import SqlQueryLoader
+from src.services.sql_query_loader import SqlQueryLoader
 
 load_dotenv()
 

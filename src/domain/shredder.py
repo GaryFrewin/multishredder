@@ -1,6 +1,6 @@
 from lxml import etree
-from domain.processed_data import ProcessedData
-from services.data_spec_builder import MetaData
+from src.domain.processed_data import ProcessedData
+from src.services.data_spec_builder import MetaData
 
 
 class XMLProcessor:
@@ -22,22 +22,27 @@ class XMLProcessor:
         worker_input_pipe.close()
 
     def _get_classes_for_row(self, row):
-        if row.action == "quote":
+        if row.action in ["quote", "retrieve"]:
             return [
                 cls
                 for cls in self.data_spec_classes
-                if cls.xml_src_column in ["request", "response", "r1", "r2", "r3"]
+                if cls.xml_src_column in ["r1", "r2", "r3"]
             ]
         else:
             return []
+
+    def _get_shredding_strategy(self, spec):
+        pass
 
     def _process_rows(self, rows, processed_data_queue):
         processed_rows = []
         for row in rows:
             classes_for_row = self._get_classes_for_row(row)
             for spec in classes_for_row:
-                processed_data = self._process_row(row, spec)
-                processed_rows.append(processed_data)
+                processed_data_list = self._process_row(row, spec)
+                if processed_data_list:
+                    for processed_data in processed_data_list:
+                        processed_rows.append(processed_data)
         processed_data_queue.put(processed_rows)
 
     def _process_row(self, row, spec: MetaData):
@@ -52,24 +57,16 @@ class XMLProcessor:
                 # print(f"Attribute {source_field} not found in row")
                 pass
 
-        # add xml data
+        # Extract XML data from the row
         column = spec.xml_src_column
         try:
             xml_data = getattr(row, column)
-            root = etree.fromstring(xml_data)
-            extracted_data = {}
-            for element in root.iter():
-                # Check if the element's tag matches spec.src_node
-                if element.tag == spec.xml_src_node:
-                    # Iterate over the xml_mapping specifications
-                    for child in element:
-                        for source_field, target_spec in spec.xml_mapping.items():
-                            target_field, data_type = target_spec
-                            if source_field == child.tag:
-                                value = child.get("Val")
-                                processed_data.add_attribute(target_field, value)
+            if xml_data is None:
+                return None
+            processed_data_list = spec.shredding_strategy.shred(
+                spec, xml_data, processed_data
+            )
         except AttributeError:
-            # print(f"XML column {column} not found in row")
-            pass
+            print(f"XML column {column} not found in row")
 
-        return processed_data
+        return processed_data_list

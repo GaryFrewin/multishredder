@@ -2,6 +2,8 @@ from collections import defaultdict
 from dataclasses import dataclass, make_dataclass
 from typing import Any
 
+from src.domain.shredding_strategies import R3Strategy, ShreddingStrategy
+
 
 @dataclass(frozen=True)
 class MetaData:
@@ -12,6 +14,7 @@ class MetaData:
     action: str
     root_mapping: dict
     xml_mapping: dict
+    shredding_strategy: ShreddingStrategy
 
 
 class MetaDataBuilder:
@@ -45,10 +48,15 @@ class MetaDataBuilder:
                 action,
                 root_map,
                 xml_map,
+                shredding_strategy=self._get_shredding_strategy(),
             )
+
             all_objects.append(metadata_instance)
 
         return all_objects
+
+    def _get_shredding_strategy(self):
+        return R3Strategy
 
     def _create_root_map(self, metadata):
         mapping = defaultdict(dict)

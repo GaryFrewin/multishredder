@@ -1,9 +1,9 @@
 from multiprocessing import Pipe, Process, Queue
-from domain.config import Config
-from domain.reader import get_sql_chunks
-from domain.shredder import XMLProcessor
-from domain.writer import write_to_sql
-from services.data_spec_builder import MetaData
+from src.domain.config import Config
+from src.domain.reader import get_sql_chunks
+from src.domain.shredder import XMLProcessor
+from src.domain.writer import write_to_sql
+from src.services.data_spec_builder import MetaData
 
 
 class MultiProcessOrchestrator:

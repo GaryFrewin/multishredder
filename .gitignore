@@ -5,3 +5,4 @@ venv/
 mprofile*
 **/__pycache__/
 .env
+tests/fixtures/

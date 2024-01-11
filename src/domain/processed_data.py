@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
@@ -16,3 +17,6 @@ class ProcessedData:
         sql = f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"
         values = list(self.dynamic_attrs.values())
         return sql, values
+
+    def clone(self):
+        return ProcessedData(deepcopy(self.dynamic_attrs))

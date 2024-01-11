@@ -1,7 +1,6 @@
 import os
 import pytest
 from src.services.sql_query_loader import SqlQueryLoader
-
 from src.services.data_spec_builder import MetaDataBuilder
 
 

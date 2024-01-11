@@ -1,13 +1,17 @@
 import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import time
 import argparse
 import pyodbc
 from dotenv import load_dotenv
-from domain.config import Config
-from domain.orchestrator import MultiProcessOrchestrator
-from domain.shredder import XMLProcessor
-from services.data_spec_builder import MetaDataBuilder
-from services.sql_query_loader import SqlQueryLoader
+from src.domain.config import Config
+from src.domain.orchestrator import MultiProcessOrchestrator
+from src.domain.shredder import XMLProcessor
+from src.services.data_spec_builder import MetaDataBuilder
+from src.services.sql_query_loader import SqlQueryLoader
 
 load_dotenv()
 
