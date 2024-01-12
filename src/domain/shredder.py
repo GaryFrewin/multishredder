@@ -1,6 +1,7 @@
 from lxml import etree
 from src.domain.processed_data import ProcessedData
 from src.services.data_spec_builder import MetaData
+from pyodbc import Row
 
 
 class XMLProcessor:
@@ -21,7 +22,7 @@ class XMLProcessor:
 
         worker_input_pipe.close()
 
-    def _get_classes_for_row(self, row):
+    def _get_classes_for_row(self, row: Row):
         if row.action in ["quote", "retrieve"]:
             return [
                 cls
@@ -45,16 +46,16 @@ class XMLProcessor:
                         processed_rows.append(processed_data)
         processed_data_queue.put(processed_rows)
 
-    def _process_row(self, row, spec: MetaData):
+    def _process_row(self, row: Row, spec: MetaData):
         processed_data = ProcessedData()
         # add root data
         for source_field, target_spec in spec.root_mapping.items():
             try:
                 target_field, data_type = target_spec
-                value = getattr(row, source_field.lower())
+                value = getattr(row, source_field)
                 processed_data.add_attribute(target_field, value)
-            except AttributeError:
-                # print(f"Attribute {source_field} not found in row")
+            except AttributeError as e:
+                print(f"Attribute {source_field} not found in row: {e}")
                 pass
 
         # Extract XML data from the row
@@ -66,7 +67,7 @@ class XMLProcessor:
             processed_data_list = spec.shredding_strategy.shred(
                 spec, xml_data, processed_data
             )
-        except AttributeError:
-            print(f"XML column {column} not found in row")
+        except AttributeError as e:
+            print(f"XML column {column} not found in row: {e}")
 
         return processed_data_list
