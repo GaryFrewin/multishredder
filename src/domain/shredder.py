@@ -18,8 +18,10 @@ class XMLProcessor:
                 break
 
             self._process_rows(rows, processed_data_queue)
+            print(f"worker {idx} is ready for more")
             readiness_queue.put(idx)
 
+        print(f"worker {idx} is done")
         worker_input_pipe.close()
 
     def _get_classes_for_row(self, row: Row):
@@ -47,7 +49,7 @@ class XMLProcessor:
         processed_data_queue.put(processed_rows)
 
     def _process_row(self, row: Row, spec: MetaData):
-        processed_data = ProcessedData()
+        processed_data = ProcessedData(spec)
         # add root data
         for source_field, target_spec in spec.root_mapping.items():
             try:

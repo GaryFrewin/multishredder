@@ -1,4 +1,5 @@
 .venv311/
+.venv312/
 .venv/
 venv/
 .vscode/

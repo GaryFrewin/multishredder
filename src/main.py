@@ -40,7 +40,7 @@ def get_db_connection():
 
 
 def fetch_metadata():
-    sql_loader = SqlQueryLoader("src\sql\select_metadata.sql")
+    sql_loader = SqlQueryLoader("src/sql/select_metadata.sql")
     query = sql_loader.load()
     replacements = {
         "US_SOURCES_TABLE": os.getenv("US_SOURCES_TABLE"),

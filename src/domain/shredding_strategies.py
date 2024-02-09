@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from lxml import etree
 
-
 class ShreddingStrategy(ABC):
     @abstractmethod
     def shred(self, spec, xml_data):

@@ -16,16 +16,15 @@ def write_to_sql(processed_data_queue, batch_size):
 
         batch = []
         for record in data:
-            # batch.append((record.field1, record.field2, record.field3))
+            batch.append(record)
+            ##do filtering and sorting here
             if len(batch) >= batch_size:
-                # cursor.executemany(
-                #     """
-                #     INSERT INTO ProcessedData (Grp_Product, Pct_Product, Pct_Pet_Sex)
-                #     VALUES (?, ?, ?)
-                #     """,
-                #     batch,
-                # )
-                # cnxn.commit()
+                sql_query, values = record.generate_insert_sql()
+                cursor.executemany(
+                    sql_query,
+                    [values],
+                )
+                cnxn.commit()
                 batch = []
 
         # Insert remaining records in the batch
