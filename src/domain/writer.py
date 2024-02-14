@@ -29,15 +29,13 @@ def write_to_sql(processed_data_queue, batch_size):
 
         # Insert remaining records in the batch
         if batch:
-            # cursor.executemany(
-            #     """
-            #     INSERT INTO ProcessedData (Grp_Product, Pct_Product, Pct_Pet_Sex)
-            #     VALUES (?, ?, ?)
-            #     """,
-            #     batch,
-            # )
-            # cnxn.commit()
-            pass
+            sql_query, values = record.generate_insert_sql()
+            cursor.executemany(
+                sql_query,
+                [values],
+            )
+            cnxn.commit()
+
 
     cursor.close()
     cnxn.close()

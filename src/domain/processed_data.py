@@ -26,4 +26,8 @@ class ProcessedData:
         return sql, values
 
     def clone(self):
-        return ProcessedData(deepcopy(self.spec, self.dynamic_attrs))
+        # Deepcopy the spec and dynamic_attrs
+        spec_copy = deepcopy(self.spec)
+        dynamic_attrs_copy = deepcopy(self.dynamic_attrs)
+        # Create a new instance of ProcessedData with copied attributes
+        return ProcessedData(spec=spec_copy, dynamic_attrs=dynamic_attrs_copy)

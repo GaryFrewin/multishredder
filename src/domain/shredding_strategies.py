@@ -7,7 +7,7 @@ class ShreddingStrategy(ABC):
         pass
 
 
-class R3Strategy(ShreddingStrategy):
+class R2andR3Strategy(ShreddingStrategy):
     @classmethod
     def shred(cls, spec, xml_data, processed_data):
         processed_data_list = []
@@ -28,6 +28,30 @@ class R3Strategy(ShreddingStrategy):
                                 value = child.get("Val")
                                 processed_data_clone.add_attribute(target_field, value)
                     processed_data_list.append(processed_data_clone)
+        except AttributeError as e:
+            print(f"Error processing XML data: {e}")
+            pass
+
+        return processed_data_list
+
+
+class R1strategy(ShreddingStrategy):
+
+    @classmethod
+    def shred(cls, spec, xml_data, processed_data):
+        processed_data_list = []
+        try:
+            root = etree.fromstring(xml_data)
+            for element in root.iter():
+                # if element.tag == spec.xml_src_node:
+                #     for child in element:
+                #         for source_field, target_spec in spec.xml_mapping.items():
+                #             target_field, data_type = target_spec
+                #             if source_field == child.tag:
+                #                 value = child.get("Val")
+                #                 processed_data.add_attribute(target_field, value)
+                #     processed_data_list.append(processed_data)
+                pass
         except AttributeError as e:
             print(f"Error processing XML data: {e}")
             pass

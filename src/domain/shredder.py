@@ -29,7 +29,7 @@ class XMLProcessor:
             return [
                 cls
                 for cls in self.data_spec_classes
-                if cls.xml_src_column in ["r1", "r2", "r3"]
+                if cls.xml_src_column in ["r3"]
             ]
         else:
             return []

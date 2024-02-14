@@ -1,7 +1,7 @@
 import pytest
 from src.domain.processed_data import ProcessedData
 
-from src.domain.shredding_strategies import R3Strategy
+from src.domain.shredding_strategies import R2andR3Strategy
 from src.services.data_spec_builder import MetaData
 
 
@@ -14,7 +14,7 @@ def test_r3_shredder(r3_quote_xml):
         action="quote",
         root_mapping={},
         xml_mapping={"Dat_ProductName": ("My_new_field_name", "str")},
-        shredding_strategy=R3Strategy,
+        shredding_strategy=R2andR3Strategy,
     )
     processed_data = ProcessedData()
 
@@ -23,3 +23,4 @@ def test_r3_shredder(r3_quote_xml):
     )
 
     assert len(processed_data_list) == 6
+    

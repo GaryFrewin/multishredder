@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import time
 import argparse
 import pyodbc
+import logging
 from dotenv import load_dotenv
 from src.domain.config import Config
 from src.domain.orchestrator import MultiProcessOrchestrator
@@ -15,6 +16,8 @@ from src.services.sql_query_loader import SqlQueryLoader
 
 load_dotenv()
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -36,6 +39,7 @@ def parse_arguments():
 
 def get_db_connection():
     conn_str = os.getenv("DB_CONNECTION_STRING")
+    print(f"Connection string {conn_str}")
     return pyodbc.connect(conn_str)
 
 
@@ -64,9 +68,14 @@ def execute_orchestrator(config, classes):
 
 
 if __name__ == "__main__":
+    logger.info("Starting main")
+    logger.info(os.environ)
     args = parse_arguments()
+    logger.info(f"Arguments: {args}")
     config = Config(args)
+    logger.info(f"Config: {config}")
     metadata = fetch_metadata()
+    logger.info(f"Metadata: {metadata}")
     metadata_class_builder = MetaDataBuilder(metadata)
     classes = metadata_class_builder.build()
     execute_orchestrator(config, classes)
